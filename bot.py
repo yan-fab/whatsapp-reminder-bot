@@ -12,6 +12,9 @@ from neonize.utils import extract_text
 from config import (
     TARGET_CHAT,
     get_target_jid,
+    NOTIFY_PHONE,
+    ENABLE_NOTIFY,
+    get_notify_jid,
     IS_VIP,
     ROLL_COUNT,
     RROLL_COUNT,
@@ -55,83 +58,32 @@ stats = {
 
 
 def send_command(command: str):
-    """Envia um único comando de texto para o destino configurado."""
+    """Envia um único comando de texto para o destino configurado (Madotsu/Grupo)."""
     jid = get_target_jid()
     logger.info(f"📤 Enviando comando: '{command}' para {TARGET_CHAT}")
     client.send_message(to=jid, message=command)
+
+
+def notify_owner(message_text: str):
+    """Envia um ping/aviso informativo para o seu número pessoal quando o bot disparar."""
+    if not ENABLE_NOTIFY or not NOTIFY_PHONE:
+        return
+
+    notify_jid = get_notify_jid()
+    if not notify_jid:
+        return
+
+    try:
+        logger.info(f"🔔 Enviando aviso/ping para seu número pessoal: {NOTIFY_PHONE}")
+        client.send_message(to=notify_jid, message=message_text)
+    except Exception as e:
+        logger.error(f"Falha ao enviar aviso para número pessoal ({NOTIFY_PHONE}): {e}")
 
 
 def sleep_humanized():
     """Aguarda um intervalo aleatório entre envios para evitar flood/bloqueio."""
     delay = random.uniform(DELAY_MIN, DELAY_MAX)
     time.sleep(delay)
-
-
-def execute_roll(source: str = "Agendado"):
-    """
-    Executa a rotina de m.roll:
-    - 5 rolls a cada 2h (ou 9 se VIP)
-    - Pequeno delay humanizado entre cada envio
-    """
-    if not ENABLE_ROLL:
-        return
-
-    logger.info(f"🎲 [ROTINA m.roll] Iniciando ciclo ({source}): {ROLL_COUNT} rolls...")
-    for i in range(1, ROLL_COUNT + 1):
-        try:
-            send_command("m.roll")
-            stats["rolls_sent"] += 1
-            stats["last_roll"] = datetime.now()
-            logger.info(f"   ↳ Roll {i}/{ROLL_COUNT} enviado com sucesso.")
-            
-            # Não dorme após o último
-            if i < ROLL_COUNT:
-                sleep_humanized()
-        except Exception as e:
-            logger.error(f"Erro ao enviar roll {i}: {e}")
-            break
-
-
-def execute_rroll(source: str = "Agendado"):
-    """
-    Executa a rotina de m.rroll:
-    - 5 rolls com maiores taxas a cada 12h
-    - Delay humanizado entre cada envio
-    """
-    if not ENABLE_RROLL:
-        return
-
-    logger.info(f"💎 [ROTINA m.rroll] Iniciando ciclo ({source}): {RROLL_COUNT} rrolls...")
-    for i in range(1, RROLL_COUNT + 1):
-        try:
-            send_command("m.rroll")
-            stats["rrolls_sent"] += 1
-            stats["last_rroll"] = datetime.now()
-            logger.info(f"   ↳ RRoll {i}/{RROLL_COUNT} enviado com sucesso.")
-            
-            if i < RROLL_COUNT:
-                sleep_humanized()
-        except Exception as e:
-            logger.error(f"Erro ao enviar rroll {i}: {e}")
-            break
-
-
-def execute_checkin(source: str = "Agendado"):
-    """
-    Executa a rotina de m.checkin:
-    - 1 vez a cada 24 horas para manter o streak diário
-    """
-    if not ENABLE_CHECKIN:
-        return
-
-    logger.info(f"📅 [ROTINA m.checkin] Enviando checkin diário ({source})...")
-    try:
-        send_command("m.checkin")
-        stats["checkins_sent"] += 1
-        stats["last_checkin"] = datetime.now()
-        logger.info("   ↳ m.checkin enviado com sucesso!")
-    except Exception as e:
-        logger.error(f"Erro ao enviar checkin: {e}")
 
 
 def get_job_next_run(job_id: str) -> str:
@@ -142,11 +94,123 @@ def get_job_next_run(job_id: str) -> str:
     return "Desativado"
 
 
+def execute_roll(source: str = "Agendado"):
+    """
+    Executa a rotina de m.roll:
+    - 5 rolls a cada 2h (ou 9 se VIP)
+    - Pequeno delay humanizado entre cada envio
+    - Envia aviso/ping para o seu número pessoal ao concluir
+    """
+    if not ENABLE_ROLL:
+        return
+
+    logger.info(f"🎲 [ROTINA m.roll] Iniciando ciclo ({source}): {ROLL_COUNT} rolls...")
+    sucessos = 0
+
+    for i in range(1, ROLL_COUNT + 1):
+        try:
+            send_command("m.roll")
+            stats["rolls_sent"] += 1
+            stats["last_roll"] = datetime.now()
+            sucessos += 1
+            logger.info(f"   ↳ Roll {i}/{ROLL_COUNT} enviado com sucesso.")
+            
+            if i < ROLL_COUNT:
+                sleep_humanized()
+        except Exception as e:
+            logger.error(f"Erro ao enviar roll {i}: {e}")
+            break
+
+    # Notifica o seu número pessoal
+    agora = datetime.now().strftime("%H:%M:%S")
+    proximo = get_job_next_run("job_roll")
+    aviso = (
+        f"🎲 *[Waifus Bot - Ping]*\n\n"
+        f"Ciclo de *m.roll* disparado com sucesso!\n"
+        f"• *Quantidade:* {sucessos}/{ROLL_COUNT} rolls enviados para `{TARGET_CHAT}`\n"
+        f"• *Origem:* {source}\n"
+        f"• *Horário:* {agora}\n"
+        f"• *Próximo envio:* {proximo}"
+    )
+    notify_owner(aviso)
+
+
+def execute_rroll(source: str = "Agendado"):
+    """
+    Executa a rotina de m.rroll:
+    - 5 rolls com maiores taxas a cada 12h
+    - Delay humanizado entre cada envio
+    - Envia aviso/ping para o seu número pessoal ao concluir
+    """
+    if not ENABLE_RROLL:
+        return
+
+    logger.info(f"💎 [ROTINA m.rroll] Iniciando ciclo ({source}): {RROLL_COUNT} rrolls...")
+    sucessos = 0
+
+    for i in range(1, RROLL_COUNT + 1):
+        try:
+            send_command("m.rroll")
+            stats["rrolls_sent"] += 1
+            stats["last_rroll"] = datetime.now()
+            sucessos += 1
+            logger.info(f"   ↳ RRoll {i}/{RROLL_COUNT} enviado com sucesso.")
+            
+            if i < RROLL_COUNT:
+                sleep_humanized()
+        except Exception as e:
+            logger.error(f"Erro ao enviar rroll {i}: {e}")
+            break
+
+    agora = datetime.now().strftime("%H:%M:%S")
+    proximo = get_job_next_run("job_rroll")
+    aviso = (
+        f"💎 *[Waifus Bot - Ping]*\n\n"
+        f"Ciclo de *m.rroll* disparado com sucesso!\n"
+        f"• *Quantidade:* {sucessos}/{RROLL_COUNT} rrolls enviados para `{TARGET_CHAT}`\n"
+        f"• *Origem:* {source}\n"
+        f"• *Horário:* {agora}\n"
+        f"• *Próximo envio:* {proximo}"
+    )
+    notify_owner(aviso)
+
+
+def execute_checkin(source: str = "Agendado"):
+    """
+    Executa a rotina de m.checkin:
+    - 1 vez a cada 24 horas para manter o streak diário
+    - Envia aviso/ping para o seu número pessoal
+    """
+    if not ENABLE_CHECKIN:
+        return
+
+    logger.info(f"📅 [ROTINA m.checkin] Enviando checkin diário ({source})...")
+    try:
+        send_command("m.checkin")
+        stats["checkins_sent"] += 1
+        stats["last_checkin"] = datetime.now()
+        logger.info("   ↳ m.checkin enviado com sucesso!")
+
+        agora = datetime.now().strftime("%H:%M:%S")
+        proximo = get_job_next_run("job_checkin")
+        aviso = (
+            f"📅 *[Waifus Bot - Ping]*\n\n"
+            f"Comando *m.checkin* enviado com sucesso para manter sua streak diária!\n"
+            f"• *Destino:* `{TARGET_CHAT}`\n"
+            f"• *Horário:* {agora}\n"
+            f"• *Próximo checkin:* {proximo}"
+        )
+        notify_owner(aviso)
+    except Exception as e:
+        logger.error(f"Erro ao enviar checkin: {e}")
+
+
 @client.event(ConnectedEv)
 def on_connected(c: NewClient, event: ConnectedEv):
     logger.info("=" * 60)
     logger.info("🟢 Conectado ao WhatsApp com sucesso via WebSocket!")
-    logger.info(f"🎯 Destino configurado: {TARGET_CHAT}")
+    logger.info(f"🎯 Destino dos rolls (Madotsu/Grupo): {TARGET_CHAT}")
+    logger.info(f"📱 Número pessoal para avisos/pings: {NOTIFY_PHONE or 'Não configurado'}")
     logger.info(f"👑 Modo VIP: {'ATIVADO (9 rolls)' if IS_VIP else 'DESATIVADO (5 rolls)'}")
     logger.info("=" * 60)
 
@@ -190,6 +254,17 @@ def on_connected(c: NewClient, event: ConnectedEv):
         logger.info(f"   • m.rroll:   a cada {INTERVAL_RROLL_HOURS}h (Próximo: {get_job_next_run('job_rroll')})")
         logger.info(f"   • m.checkin: a cada {INTERVAL_CHECKIN_HOURS}h (Próximo: {get_job_next_run('job_checkin')})")
 
+        # Notifica o dono que o bot acabou de ligar
+        notify_owner(
+            f"🟢 *[Waifus Bot - Online]*\n\n"
+            f"O bot foi iniciado na VPS e está conectado com sucesso!\n"
+            f"• *Destino dos rolls:* `{TARGET_CHAT}`\n"
+            f"• *m.roll:* a cada {INTERVAL_ROLL_HOURS}h (Próximo: {get_job_next_run('job_roll')})\n"
+            f"• *m.rroll:* a cada {INTERVAL_RROLL_HOURS}h (Próximo: {get_job_next_run('job_rroll')})\n"
+            f"• *m.checkin:* a cada {INTERVAL_CHECKIN_HOURS}h (Próximo: {get_job_next_run('job_checkin')})\n\n"
+            f"Envie *!ping* ou *!status* a qualquer momento."
+        )
+
         # Disparo inicial opcional
         if RUN_IMMEDIATELY:
             logger.info("🚀 RUN_IMMEDIATELY=true: Executando primeiro ciclo de validação...")
@@ -228,12 +303,29 @@ def on_message(c: NewClient, message: MessageEv):
 
     cmd = text.lower()
 
-    if cmd in ("!status", "/status"):
+    if cmd in ("!ping", "ping", "/ping"):
+        agora = datetime.now().strftime("%H:%M:%S")
+        uptime = str(datetime.now() - stats["started_at"]).split(".")[0]
+        reply = (
+            f"🏓 *Pong!*\n\n"
+            f"• *Status:* 🟢 Bot Ativo e Operando na VPS\n"
+            f"• *Horário:* {agora}\n"
+            f"• *Tempo ativo:* {uptime}\n"
+            f"• *Destino dos comandos:* `{TARGET_CHAT}`\n\n"
+            f"🕒 *Próximos Envios:*\n"
+            f"  🎲 m.roll: {get_job_next_run('job_roll')}\n"
+            f"  💎 m.rroll: {get_job_next_run('job_rroll')}\n"
+            f"  📅 m.checkin: {get_job_next_run('job_checkin')}"
+        )
+        c.reply_message(reply, message)
+
+    elif cmd in ("!status", "/status"):
         uptime = str(datetime.now() - stats["started_at"]).split(".")[0]
         reply = (
             f"📊 *Painel do Waifus Auto-Bot*\n\n"
             f"• *Status:* 🟢 Conectado e Ativo\n"
             f"• *Destino:* `{TARGET_CHAT}`\n"
+            f"• *Avisos para você:* `{NOTIFY_PHONE or 'Desativado'}`\n"
             f"• *Modo VIP:* {'Sim (9 rolls)' if IS_VIP else 'Não (5 rolls)'}\n\n"
             f"🕒 *Próximos Disparos:*\n"
             f"  🎲 m.roll: {get_job_next_run('job_roll')}\n"
@@ -248,15 +340,15 @@ def on_message(c: NewClient, message: MessageEv):
         c.reply_message(reply, message)
 
     elif cmd == "!roll":
-        c.reply_message(f"🎲 Disparando {ROLL_COUNT} rolls manuais...", message)
+        c.reply_message(f"🎲 Disparando {ROLL_COUNT} rolls manuais para `{TARGET_CHAT}`...", message)
         execute_roll("Manual")
 
     elif cmd == "!rroll":
-        c.reply_message(f"💎 Disparando {RROLL_COUNT} rrolls manuais...", message)
+        c.reply_message(f"💎 Disparando {RROLL_COUNT} rrolls manuais para `{TARGET_CHAT}`...", message)
         execute_rroll("Manual")
 
     elif cmd == "!checkin":
-        c.reply_message("📅 Disparando m.checkin manual...", message)
+        c.reply_message(f"📅 Disparando m.checkin manual para `{TARGET_CHAT}`...", message)
         execute_checkin("Manual")
 
     elif cmd in ("!grupos", "/grupos"):
@@ -279,6 +371,7 @@ def on_message(c: NewClient, message: MessageEv):
     elif cmd in ("!ajuda", "/ajuda", "help"):
         reply = (
             "📌 *Comandos de Controle do Bot:*\n\n"
+            "• `!ping` - Teste de resposta e status rápido\n"
             "• `!status` - Exibe os próximos horários e total enviado\n"
             "• `!roll` - Força envio do ciclo de m.roll agora\n"
             "• `!rroll` - Força envio do ciclo de m.rroll agora\n"
@@ -294,6 +387,7 @@ def main():
     ======================================================
         🌸 WhatsApp Waifus Auto-Bot (Madotsu 5)
         m.roll (2h) | m.rroll (12h) | m.checkin (24h)
+        Com Pings e Avisos no seu WhatsApp Pessoal
     ======================================================
     """)
 
@@ -301,6 +395,7 @@ def main():
         sys.exit(1)
 
     logger.info(f"Destino dos comandos: {TARGET_CHAT}")
+    logger.info(f"Número para avisos/pings: {NOTIFY_PHONE or 'Desativado'}")
     logger.info(f"Modo VIP: {'Sim (9 rolls)' if IS_VIP else 'Não (5 rolls)'}")
     logger.info("Iniciando conexão WebSocket...")
 

@@ -7,8 +7,12 @@ from neonize.utils import build_jid
 # Carrega as variáveis do arquivo .env
 load_dotenv()
 
-# Destino das mensagens (pode ser seu número pessoal ou o JID do Grupo)
-# Exemplo número pessoal: 5511999999999
+def clean_phone_number(raw_phone: str) -> str:
+    """Remove caracteres não numéricos de um número de telefone."""
+    return re.sub(r"\D", "", raw_phone or "")
+
+# Onde os comandos do jogo serão enviados (número do Madotsu ou JID do Grupo)
+# Exemplo número: 5511999999999
 # Exemplo grupo: 120363048999999999@g.us
 TARGET_CHAT = os.getenv("TARGET_CHAT", os.getenv("TARGET_PHONE", "")).strip()
 
@@ -22,11 +26,21 @@ def get_target_jid(raw_target: str = TARGET_CHAT) -> JID:
         group_user = raw.replace("@g.us", "")
         return JID(User=group_user, Server="g.us")
     elif "@s.whatsapp.net" in raw:
-        digits = re.sub(r"\D", "", raw.replace("@s.whatsapp.net", ""))
+        digits = clean_phone_number(raw.replace("@s.whatsapp.net", ""))
         return build_jid(digits)
     else:
-        digits = re.sub(r"\D", "", raw)
+        digits = clean_phone_number(raw)
         return build_jid(digits)
+
+# Seu número pessoal para receber Pings e Avisos quando o bot disparar
+NOTIFY_PHONE = clean_phone_number(os.getenv("NOTIFY_PHONE", os.getenv("ADMIN_PHONE", "")))
+ENABLE_NOTIFY = os.getenv("ENABLE_NOTIFY", "true").strip().lower() in ("true", "1", "yes", "sim")
+
+def get_notify_jid() -> JID | None:
+    """Retorna o JID do número pessoal do dono se configurado."""
+    if NOTIFY_PHONE:
+        return build_jid(NOTIFY_PHONE)
+    return None
 
 # Configurações VIP
 IS_VIP = os.getenv("IS_VIP", "false").strip().lower() in ("true", "1", "yes", "sim")
@@ -66,6 +80,6 @@ if db_dir:
 def validate_config() -> bool:
     if not TARGET_CHAT:
         print("\n⚠️  [ATENÇÃO] A variável TARGET_CHAT não está configurada no .env!")
-        print("👉 Preencha com o número (ex: 5511999999999) ou o ID do Grupo (ex: 1203630XXXXXXXX@g.us).\n")
+        print("👉 Preencha com o número do Madotsu (ex: 5511999999999) ou o ID do Grupo (ex: 1203630XXXXXXXX@g.us).\n")
         return False
     return True
