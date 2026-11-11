@@ -11,26 +11,24 @@ def clean_phone_number(raw_phone: str) -> str:
     """Remove caracteres não numéricos de um número de telefone."""
     return re.sub(r"\D", "", raw_phone or "")
 
-# Onde os comandos do jogo serão enviados (número do Madotsu ou JID do Grupo)
-# Exemplo número: 5511999999999
-# Exemplo grupo: 120363048999999999@g.us
-TARGET_CHAT = os.getenv("TARGET_CHAT", os.getenv("TARGET_PHONE", "")).strip()
+# Número privado do bot Madotsu (NUNCA ID de grupo)
+RAW_TARGET = os.getenv("MADOTSU_PHONE", os.getenv("TARGET_CHAT", os.getenv("TARGET_PHONE", ""))).strip()
+MADOTSU_PHONE = clean_phone_number(RAW_TARGET)
 
-def get_target_jid(raw_target: str = TARGET_CHAT) -> JID:
+# Trava de segurança: detectar se alguém tentou passar um ID de grupo
+IS_GROUP_TARGET = "@g.us" in RAW_TARGET.lower()
+
+def get_target_jid() -> JID:
     """
-    Identifica se o destino é um grupo (@g.us) ou um número pessoal (@s.whatsapp.net)
-    e retorna o JID correspondente pronto para envio no Neonize.
+    Retorna estritamente o JID privado do bot Madotsu (@s.whatsapp.net).
+    Bloqueia categoricamente qualquer tentativa de envio para grupos (@g.us).
     """
-    raw = (raw_target or "").strip()
-    if "@g.us" in raw:
-        group_user = raw.replace("@g.us", "")
-        return JID(User=group_user, Server="g.us")
-    elif "@s.whatsapp.net" in raw:
-        digits = clean_phone_number(raw.replace("@s.whatsapp.net", ""))
-        return build_jid(digits)
-    else:
-        digits = clean_phone_number(raw)
-        return build_jid(digits)
+    if IS_GROUP_TARGET or not MADOTSU_PHONE:
+        raise ValueError(
+            "❌ [TRAVA DE SEGURANÇA] Envio para grupos (@g.us) está estritamente bloqueado! "
+            "Configure apenas o número privado do Madotsu."
+        )
+    return build_jid(MADOTSU_PHONE)
 
 # Seu número pessoal para receber Pings e Avisos quando o bot disparar
 NOTIFY_PHONE = clean_phone_number(os.getenv("NOTIFY_PHONE", os.getenv("ADMIN_PHONE", "")))
@@ -78,8 +76,16 @@ if db_dir:
     os.makedirs(db_dir, exist_ok=True)
 
 def validate_config() -> bool:
-    if not TARGET_CHAT:
-        print("\n⚠️  [ATENÇÃO] A variável TARGET_CHAT não está configurada no .env!")
-        print("👉 Preencha com o número do Madotsu (ex: 5511999999999) ou o ID do Grupo (ex: 1203630XXXXXXXX@g.us).\n")
+    if IS_GROUP_TARGET:
+        print("\n🚫 [BLOQUEIO DE SEGURANÇA ATIVADO]")
+        print("Detectado ID de grupo (@g.us) no arquivo .env!")
+        print("Os comandos m.roll e m.rroll NÃO PODEM ser enviados para o grupo principal para evitar flood.")
+        print("👉 Preencha a variável MADOTSU_PHONE apenas com o número privado do bot Madotsu (ex: 5511999999999).\n")
         return False
+
+    if not MADOTSU_PHONE:
+        print("\n⚠️  [ATENÇÃO] A variável MADOTSU_PHONE não está configurada no .env!")
+        print("👉 Preencha com o número privado do bot Madotsu (DDI + DDD + Número), por exemplo: 5511999999999.\n")
+        return False
+
     return True
