@@ -10,7 +10,7 @@ from neonize.events import ConnectedEv, DisconnectedEv, LoggedOutEv, PairStatusE
 from neonize.utils import extract_text
 
 from config import (
-    MADOTSU_PHONE,
+    TARGET_BOT_PHONE,
     get_target_jid,
     NOTIFY_PHONE,
     ENABLE_NOTIFY,
@@ -59,7 +59,7 @@ stats = {
 
 def send_command(command: str):
     """
-    Envia o comando diretamente para o número privado do Madotsu.
+    Envia o comando diretamente para o número privado do bot.
     Possui trava rígida contra envio acidental para grupos (@g.us).
     """
     jid = get_target_jid()
@@ -69,7 +69,7 @@ def send_command(command: str):
         logger.error(f"🚫 [BLOQUEIO DE SEGURANÇA] Tentativa de envio para grupo impedida! Comando: {command}")
         return
 
-    logger.info(f"📤 Enviando comando '{command}' diretamente no privado do Madotsu ({MADOTSU_PHONE})")
+    logger.info(f"📤 Enviando comando '{command}' diretamente no privado do bot ({TARGET_BOT_PHONE})")
     client.send_message(to=jid, message=command)
 
 
@@ -106,14 +106,14 @@ def get_job_next_run(job_id: str) -> str:
 def execute_roll(source: str = "Agendado"):
     """
     Executa a rotina de m.roll:
-    - 5 rolls a cada 2h (ou 9 se VIP) diretamente no privado do Madotsu
+    - 5 rolls a cada 2h (ou 9 se VIP) diretamente no privado do bot
     - Delay humanizado entre cada envio
     - Envia aviso/ping para o seu número pessoal ao concluir
     """
     if not ENABLE_ROLL:
         return
 
-    logger.info(f"🎲 [ROTINA m.roll] Iniciando ciclo ({source}): {ROLL_COUNT} rolls para o Madotsu...")
+    logger.info(f"🎲 [ROTINA m.roll] Iniciando ciclo ({source}): {ROLL_COUNT} rolls...")
     sucessos = 0
 
     for i in range(1, ROLL_COUNT + 1):
@@ -135,8 +135,8 @@ def execute_roll(source: str = "Agendado"):
     proximo = get_job_next_run("job_roll")
     aviso = (
         f"🎲 *[Waifus Bot - Ping]*\n\n"
-        f"Ciclo de *m.roll* disparado no privado do Madotsu!\n"
-        f"• *Quantidade:* {sucessos}/{ROLL_COUNT} rolls enviados para `{MADOTSU_PHONE}`\n"
+        f"Ciclo de *m.roll* disparado no privado do bot!\n"
+        f"• *Quantidade:* {sucessos}/{ROLL_COUNT} rolls enviados para `{TARGET_BOT_PHONE}`\n"
         f"• *Origem:* {source}\n"
         f"• *Horário:* {agora}\n"
         f"• *Próximo envio:* {proximo}"
@@ -147,14 +147,14 @@ def execute_roll(source: str = "Agendado"):
 def execute_rroll(source: str = "Agendado"):
     """
     Executa a rotina de m.rroll:
-    - 5 rolls com maiores taxas a cada 12h diretamente no privado do Madotsu
+    - 5 rolls com maiores taxas a cada 12h diretamente no privado do bot
     - Delay humanizado entre cada envio
     - Envia aviso/ping para o seu número pessoal ao concluir
     """
     if not ENABLE_RROLL:
         return
 
-    logger.info(f"💎 [ROTINA m.rroll] Iniciando ciclo ({source}): {RROLL_COUNT} rrolls para o Madotsu...")
+    logger.info(f"💎 [ROTINA m.rroll] Iniciando ciclo ({source}): {RROLL_COUNT} rrolls...")
     sucessos = 0
 
     for i in range(1, RROLL_COUNT + 1):
@@ -175,8 +175,8 @@ def execute_rroll(source: str = "Agendado"):
     proximo = get_job_next_run("job_rroll")
     aviso = (
         f"💎 *[Waifus Bot - Ping]*\n\n"
-        f"Ciclo de *m.rroll* disparado no privado do Madotsu!\n"
-        f"• *Quantidade:* {sucessos}/{RROLL_COUNT} rrolls enviados para `{MADOTSU_PHONE}`\n"
+        f"Ciclo de *m.rroll* disparado no privado do bot!\n"
+        f"• *Quantidade:* {sucessos}/{RROLL_COUNT} rrolls enviados para `{TARGET_BOT_PHONE}`\n"
         f"• *Origem:* {source}\n"
         f"• *Horário:* {agora}\n"
         f"• *Próximo envio:* {proximo}"
@@ -187,7 +187,7 @@ def execute_rroll(source: str = "Agendado"):
 def execute_checkin(source: str = "Agendado"):
     """
     Executa a rotina de m.checkin:
-    - 1 vez a cada 24 horas no privado do Madotsu
+    - 1 vez a cada 24 horas no privado do bot
     - Envia aviso/ping para o seu número pessoal
     """
     if not ENABLE_CHECKIN:
@@ -204,8 +204,8 @@ def execute_checkin(source: str = "Agendado"):
         proximo = get_job_next_run("job_checkin")
         aviso = (
             f"📅 *[Waifus Bot - Ping]*\n\n"
-            f"Comando *m.checkin* enviado no privado do Madotsu para manter sua streak diária!\n"
-            f"• *Destino:* `{MADOTSU_PHONE}`\n"
+            f"Comando *m.checkin* enviado no privado do bot para manter sua streak diária!\n"
+            f"• *Destino:* `{TARGET_BOT_PHONE}`\n"
             f"• *Horário:* {agora}\n"
             f"• *Próximo checkin:* {proximo}"
         )
@@ -218,7 +218,7 @@ def execute_checkin(source: str = "Agendado"):
 def on_connected(c: NewClient, event: ConnectedEv):
     logger.info("=" * 65)
     logger.info("🟢 Conectado ao WhatsApp com sucesso via WebSocket!")
-    logger.info(f"🤖 Destino (Privado do Madotsu): {MADOTSU_PHONE}")
+    logger.info(f"🤖 Destino (Privado do Bot): {TARGET_BOT_PHONE}")
     logger.info("🔒 Trava de segurança: Envio para grupos (@g.us) BLOQUEADO")
     logger.info(f"📱 Número pessoal para avisos/pings: {NOTIFY_PHONE or 'Não configurado'}")
     logger.info(f"👑 Modo VIP: {'ATIVADO (9 rolls)' if IS_VIP else 'DESATIVADO (5 rolls)'}")
@@ -268,7 +268,7 @@ def on_connected(c: NewClient, event: ConnectedEv):
         notify_owner(
             f"🟢 *[Waifus Bot - Online]*\n\n"
             f"O bot foi iniciado na VPS e está conectado com sucesso!\n"
-            f"• *Destino:* Privado do Madotsu (`{MADOTSU_PHONE}`)\n"
+            f"• *Destino:* Privado do Bot (`{TARGET_BOT_PHONE}`)\n"
             f"• *Trava de Grupo:* 🔒 Ativa (nada será enviado para grupos)\n"
             f"• *m.roll:* a cada {INTERVAL_ROLL_HOURS}h (Próximo: {get_job_next_run('job_roll')})\n"
             f"• *m.rroll:* a cada {INTERVAL_RROLL_HOURS}h (Próximo: {get_job_next_run('job_rroll')})\n"
@@ -322,7 +322,7 @@ def on_message(c: NewClient, message: MessageEv):
             f"• *Status:* 🟢 Bot Ativo na VPS\n"
             f"• *Horário:* {agora}\n"
             f"• *Tempo ativo:* {uptime}\n"
-            f"• *Destino (Privado Madotsu):* `{MADOTSU_PHONE}`\n"
+            f"• *Destino (Privado do Bot):* `{TARGET_BOT_PHONE}`\n"
             f"• *Trava de Grupo:* 🔒 Ativa (zero mensagens em grupos)\n\n"
             f"🕒 *Próximos Envios:*\n"
             f"  🎲 m.roll: {get_job_next_run('job_roll')}\n"
@@ -336,7 +336,7 @@ def on_message(c: NewClient, message: MessageEv):
         reply = (
             f"📊 *Painel do Waifus Auto-Bot*\n\n"
             f"• *Status:* 🟢 Conectado e Ativo\n"
-            f"• *Destino:* Privado do Madotsu (`{MADOTSU_PHONE}`)\n"
+            f"• *Destino:* Privado do Bot (`{TARGET_BOT_PHONE}`)\n"
             f"• *Trava de Grupo:* 🔒 Bloqueio de grupos 100% ativo\n"
             f"• *Avisos para você:* `{NOTIFY_PHONE or 'Desativado'}`\n"
             f"• *Modo VIP:* {'Sim (9 rolls)' if IS_VIP else 'Não (5 rolls)'}\n\n"
@@ -350,15 +350,15 @@ def on_message(c: NewClient, message: MessageEv):
         c.reply_message(reply, message)
 
     elif cmd == "!roll":
-        c.reply_message(f"🎲 Disparando {ROLL_COUNT} rolls manuais no privado do Madotsu (`{MADOTSU_PHONE}`)...", message)
+        c.reply_message(f"🎲 Disparando {ROLL_COUNT} rolls manuais no privado do bot (`{TARGET_BOT_PHONE}`)...", message)
         execute_roll("Manual")
 
     elif cmd == "!rroll":
-        c.reply_message(f"💎 Disparando {RROLL_COUNT} rrolls manuais no privado do Madotsu (`{MADOTSU_PHONE}`)...", message)
+        c.reply_message(f"💎 Disparando {RROLL_COUNT} rrolls manuais no privado do bot (`{TARGET_BOT_PHONE}`)...", message)
         execute_rroll("Manual")
 
     elif cmd == "!checkin":
-        c.reply_message(f"📅 Disparando m.checkin manual no privado do Madotsu (`{MADOTSU_PHONE}`)...", message)
+        c.reply_message(f"📅 Disparando m.checkin manual no privado do bot (`{TARGET_BOT_PHONE}`)...", message)
         execute_checkin("Manual")
 
     elif cmd in ("!ajuda", "/ajuda", "help"):
@@ -366,11 +366,11 @@ def on_message(c: NewClient, message: MessageEv):
             "📌 *Comandos de Controle do Bot:*\n\n"
             "• `!ping` - Teste de resposta e status rápido\n"
             "• `!status` - Exibe os próximos horários e total enviado\n"
-            "• `!roll` - Força envio do ciclo de m.roll no privado do Madotsu\n"
-            "• `!rroll` - Força envio do ciclo de m.rroll no privado do Madotsu\n"
-            "• `!checkin` - Força envio do m.checkin no privado do Madotsu\n"
+            "• `!roll` - Força envio do ciclo de m.roll no privado do bot\n"
+            "• `!rroll` - Força envio do ciclo de m.rroll no privado do bot\n"
+            "• `!checkin` - Força envio do m.checkin no privado do bot\n"
             "• `!ajuda` - Exibe esta mensagem\n\n"
-            "🔒 *Nota de Segurança:* O bot está configurado para enviar apenas para o privado do Madotsu. Nenhum comando é enviado para grupos."
+            "🔒 *Nota de Segurança:* O bot está configurado para enviar apenas para o privado do bot de destino. Nenhum comando é enviado para grupos."
         )
         c.reply_message(reply, message)
 
@@ -378,8 +378,8 @@ def on_message(c: NewClient, message: MessageEv):
 def main():
     print("""
     ======================================================
-        🌸 WhatsApp Waifus Auto-Bot (Madotsu 5)
-        Envio direto no PRIVADO do Madotsu
+        🌸 WhatsApp Waifus Auto-Bot
+        Envio direto no PRIVADO do Bot
         Trava de Segurança: GRUPOS BLOQUEADOS
     ======================================================
     """)
@@ -387,7 +387,7 @@ def main():
     if not validate_config():
         sys.exit(1)
 
-    logger.info(f"Destino dos comandos: Privado do Madotsu ({MADOTSU_PHONE})")
+    logger.info(f"Destino dos comandos: Privado do Bot ({TARGET_BOT_PHONE})")
     logger.info("🔒 Trava de segurança contra grupos ATIVA.")
     logger.info(f"Número para avisos/pings: {NOTIFY_PHONE or 'Desativado'}")
     logger.info(f"Modo VIP: {'Sim (9 rolls)' if IS_VIP else 'Não (5 rolls)'}")
