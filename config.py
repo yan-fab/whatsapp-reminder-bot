@@ -1,52 +1,66 @@
 import os
 import re
-from datetime import timedelta
 from dotenv import load_dotenv
+from neonize.proto.Neonize_pb2 import JID
+from neonize.utils import build_jid
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
 
-def clean_phone_number(raw_phone: str) -> str:
+# Destino das mensagens (pode ser seu número pessoal ou o JID do Grupo)
+# Exemplo número pessoal: 5511999999999
+# Exemplo grupo: 120363048999999999@g.us
+TARGET_CHAT = os.getenv("TARGET_CHAT", os.getenv("TARGET_PHONE", "")).strip()
+
+def get_target_jid(raw_target: str = TARGET_CHAT) -> JID:
     """
-    Remove caracteres não numéricos e formata o número para o padrão internacional.
-    Exemplo: +55 (11) 98765-4321 -> 5511987654321
+    Identifica se o destino é um grupo (@g.us) ou um número pessoal (@s.whatsapp.net)
+    e retorna o JID correspondente pronto para envio no Neonize.
     """
-    digits_only = re.sub(r"\D", "", raw_phone or "")
-    return digits_only
+    raw = (raw_target or "").strip()
+    if "@g.us" in raw:
+        group_user = raw.replace("@g.us", "")
+        return JID(User=group_user, Server="g.us")
+    elif "@s.whatsapp.net" in raw:
+        digits = re.sub(r"\D", "", raw.replace("@s.whatsapp.net", ""))
+        return build_jid(digits)
+    else:
+        digits = re.sub(r"\D", "", raw)
+        return build_jid(digits)
 
-# Configurações do Alvo e Mensagem
-TARGET_PHONE = clean_phone_number(os.getenv("TARGET_PHONE", ""))
-REMINDER_MESSAGE = os.getenv(
-    "REMINDER_MESSAGE", 
-    "🔔 *Lembrete Automático*\n\nNão se esqueça da sua atividade programada! 🚀"
-)
+# Configurações VIP
+IS_VIP = os.getenv("IS_VIP", "false").strip().lower() in ("true", "1", "yes", "sim")
 
-# Intervalo de envio (suporta horas e minutos para testes)
-try:
-    INTERVAL_HOURS = float(os.getenv("REMINDER_INTERVAL_HOURS", "2"))
-except ValueError:
-    INTERVAL_HOURS = 2.0
+# Quantidade de rolls por ciclo:
+# VIP: 9 rolls a cada 2h | Comum: 5 rolls a cada 2h
+ROLL_COUNT = int(os.getenv("ROLL_COUNT", "9" if IS_VIP else "5"))
 
-try:
-    INTERVAL_MINUTES = float(os.getenv("REMINDER_INTERVAL_MINUTES", "0"))
-except ValueError:
-    INTERVAL_MINUTES = 0.0
+# Quantidade de rrolls por ciclo: 5 a cada 12h
+RROLL_COUNT = int(os.getenv("RROLL_COUNT", "5"))
 
-# Se horas e minutos forem 0, define padrão para 1 hora
-TOTAL_SECONDS = int(INTERVAL_HOURS * 3600 + INTERVAL_MINUTES * 60)
-if TOTAL_SECONDS <= 0:
-    TOTAL_SECONDS = 3600
+# Intervalos em horas (conforme comandos_waifus.md)
+INTERVAL_ROLL_HOURS = float(os.getenv("INTERVAL_ROLL_HOURS", "2"))        # m.roll a cada 2 horas
+INTERVAL_RROLL_HOURS = float(os.getenv("INTERVAL_RROLL_HOURS", "12"))     # m.rroll a cada 12 horas
+INTERVAL_CHECKIN_HOURS = float(os.getenv("INTERVAL_CHECKIN_HOURS", "24")) # m.checkin a cada 24 horas
 
-# Executar imediatamente ao conectar?
-RUN_IMMEDIATELY = os.getenv("RUN_IMMEDIATELY", "false").strip().lower() in ("true", "1", "yes", "sim")
+# Delays humanizados entre cada envio consecutivo (em segundos) para evitar bloqueio/flood
+DELAY_MIN = float(os.getenv("DELAY_MIN", "3.0"))
+DELAY_MAX = float(os.getenv("DELAY_MAX", "6.0"))
+
+# Habilitar ou desabilitar comandos individualmente
+ENABLE_ROLL = os.getenv("ENABLE_ROLL", "true").strip().lower() in ("true", "1", "yes", "sim")
+ENABLE_RROLL = os.getenv("ENABLE_RROLL", "true").strip().lower() in ("true", "1", "yes", "sim")
+ENABLE_CHECKIN = os.getenv("ENABLE_CHECKIN", "true").strip().lower() in ("true", "1", "yes", "sim")
+
+# Disparar um primeiro ciclo de comandos assim que conectar?
+RUN_IMMEDIATELY = os.getenv("RUN_IMMEDIATELY", "true").strip().lower() in ("true", "1", "yes", "sim")
 
 # Caminho do banco SQLite de sessão do WhatsApp
 DATABASE_PATH = os.getenv("DATABASE_PATH", "session.sqlite3")
 
-# Validação inicial
 def validate_config() -> bool:
-    if not TARGET_PHONE:
-        print("\n⚠️  [ATENÇÃO] A variável TARGET_PHONE não está definida no arquivo .env!")
-        print("👉 Preencha com seu número completo (DDI + DDD + Número), por exemplo: 5511999999999\n")
+    if not TARGET_CHAT:
+        print("\n⚠️  [ATENÇÃO] A variável TARGET_CHAT não está configurada no .env!")
+        print("👉 Preencha com o número (ex: 5511999999999) ou o ID do Grupo (ex: 1203630XXXXXXXX@g.us).\n")
         return False
     return True

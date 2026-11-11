@@ -1,145 +1,80 @@
-# ⏰ WhatsApp Reminder Bot (Web/Socket)
+# 🌸 WhatsApp Waifus Auto-Bot (Madotsu 5 / RolêSP)
 
-Bot de automação pessoal para envio de lembretes periódicos a cada **X horas** diretamente para o seu WhatsApp pessoal.
-
-Construído em **Python** utilizando **Neonize** (uma engine nativa de WebSockets do WhatsApp Multi-Device baseada em `whatsmeow` do Go), consumindo apenas cerca de **~50MB de memória RAM** (sem navegadores pesados como Puppeteer/Chromium).
+Bot de automação pessoal via **WebSockets direto** (sem navegador pesado, consumindo apenas ~50MB de RAM) para envio automático dos comandos periódicos do sistema de Waifus do **Bot Madotsu 5**.
 
 ---
 
-## ✨ Recursos
+## 📋 Tabela de Comandos e Intervalos (Conforme o Guia)
 
-- ⚡ **Ultra-leve:** Consome apenas ~50MB de RAM, perfeito para rodar 24/7 em instâncias gratuitas da nuvem (Oracle Cloud Always Free).
-- 🔄 **Conexão Direta por WebSocket:** Sem Chrome ou Selenium. Comunica diretamente com os servidores do WhatsApp.
-- 📲 **Login Único por QR Code:** O QR Code é desenhado no terminal no primeiro acesso. Depois disso, a sessão fica salva em `session.sqlite3` e reconecta automaticamente.
-- ⏱️ **Agendamento Flexível:** Configure o intervalo de horas (ou minutos para testes rápidos).
-- 💬 **Comandos Interativos:** Se você responder ao bot no WhatsApp, ele reconhece comandos como:
-  - `!status` - Mostra tempo ativo, último envio e próximo lembrete.
-  - `!lembrete` - Dispara um lembrete manual teste imediatamente.
-  - `!ajuda` - Lista os comandos disponíveis.
+| Comando | Onde usar | Quantidade / Intervalo | Modo VIP | Função |
+| :--- | :--- | :--- | :--- | :--- |
+| `m.roll` | Grupo | **5 rolls a cada 2 horas** | **9 rolls a cada 2 horas** | Rola personagem aleatório comum, rara, épica, lendária e mítica. |
+| `m.rroll` | Grupo | **5 rolls a cada 12 horas** | *(igual)* | Rola com taxas aumentadas para raridades raras ou superiores. |
+| `m.checkin` | Grupo / Bot | **1 vez a cada 24 horas** | *(2 dias de tolerância)* | Mantém a sequência (*streak*) diária no perfil. |
+
+---
+
+## 🛡️ Anti-Flood & Simulação Humana
+Para cumprir as diretrizes da comunidade e evitar avisos/bloqueios por spam, o bot:
+- Não envia todos os rolls de uma vez só: ele aguarda um **delay aleatório humanizado** (entre 3 e 6 segundos) entre cada `m.roll` e `m.rroll`.
+- Desconecta de forma segura e reconecta automaticamente se a rede oscilar.
 
 ---
 
 ## 🚀 Como Executar Localmente
 
-### 1. Pré-requisitos
-- Python 3.10 ou superior instalado.
-
-### 2. Instalação das Dependências
-
-Abra o terminal na pasta do projeto:
-
-```bash
-# Crie e ative o ambiente virtual (opcional, mas recomendado)
-python -m venv .venv
-
-# No Windows (PowerShell):
-.\.venv\Scripts\activate
-# No Linux/Mac:
-source .venv/bin/activate
-
-# Instale os pacotes:
-pip install -r requirements.txt
-```
-
-### 3. Configuração do `.env`
-
-Copie o arquivo `.env.example` para `.env`:
-
-```bash
-cp .env.example .env
-```
-
-Edite o `.env` com suas informações:
-
+### 1. Configurar o `.env`
+Abra o arquivo `.env` e configure o destino:
 ```env
-# Seu número com DDI (55 para Brasil) + DDD + Telefone (apenas números)
-TARGET_PHONE=5511999999999
+# Se for mandar no seu próprio número ou privado:
+TARGET_CHAT=5511999999999
 
-# Intervalo em horas entre cada envio (ex: 2 para a cada 2 horas)
-REMINDER_INTERVAL_HOURS=2
+# OU se for mandar diretamente dentro do Grupo do WhatsApp:
+# TARGET_CHAT=1203630XXXXXXXXX@g.us
 
-# Mensagem do lembrete (suporta formatação WhatsApp: *negrito*, _itálico_)
-REMINDER_MESSAGE=🔔 *Lembrete Automático*\n\nHora de fazer uma pausa, beber água e revisar as tarefas! 🚀
-
-# Enviar o primeiro lembrete assim que conectar? (true/false)
-RUN_IMMEDIATELY=true
+# Se você tem VIP no Madotsu:
+IS_VIP=false
 ```
 
-### 4. Executando o Bot
+> 💡 **Dica para descobrir o ID do seu Grupo:**  
+> Ao iniciar o bot, envie `!grupos` pelo WhatsApp para ele. O bot responderá com uma lista de todos os seus grupos e seus respectivos IDs (`@g.us`). Basta copiar e colar no `TARGET_CHAT`.
+
+### 2. Iniciar o Bot
 
 ```bash
+cd whatsapp-reminder-bot
 python bot.py
 ```
 
-1. Na **primeira execução**, um QR Code será impresso no seu terminal.
-2. No seu celular, abra o WhatsApp: **Configurações / Aparelhos Conectados > Conectar um Aparelho**.
-3. Aponte a câmera para o QR Code no terminal.
-4. Pronto! O bot confirmará a conexão e iniciará o cronômetro do lembrete.
+1. Na primeira execução, o **QR Code** será exibido no seu terminal.
+2. No celular: **WhatsApp > Aparelhos Conectados > Conectar um Aparelho** e escaneie.
+3. A sessão será salva localmente em `session.sqlite3` (você só escaneia uma vez).
 
 ---
 
-## ☁️ Deploy 24/7 na Nuvem (VPS Grátis)
+## 💬 Comandos Interativos no WhatsApp
 
-### Opção 1: Oracle Cloud Always Free (Recomendada)
-A Oracle Cloud oferece instâncias gratuitas para sempre com 1GB a 24GB de RAM.
-
-1. Crie uma VM com Ubuntu 22.04 / 24.04.
-2. Clone seu repositório na VPS:
-   ```bash
-   git clone https://github.com/yan-fab/whatsapp-reminder-bot.git
-   cd whatsapp-reminder-bot
-   cp .env.example .env
-   nano .env # preencha seus dados
-   ```
-3. Suba com Docker Compose:
-   ```bash
-   docker compose up -d
-   ```
-4. Veja os logs e escaneie o QR Code:
-   ```bash
-   docker compose logs -f
-   ```
-
-### Opção 2: Como Serviço no Linux (Systemd)
-Se preferir rodar sem Docker na VPS:
-
-1. Crie o serviço systemd:
-   ```bash
-   sudo nano /etc/systemd/system/whatsapp-bot.service
-   ```
-2. Adicione a configuração:
-   ```ini
-   [Unit]
-   Description=WhatsApp Reminder Bot
-   After=network.target
-
-   [Service]
-   Type=simple
-   User=ubuntu
-   WorkingDirectory=/home/ubuntu/whatsapp-reminder-bot
-   ExecStart=/home/ubuntu/whatsapp-reminder-bot/.venv/bin/python bot.py
-   Restart=always
-   RestartSec=10
-
-   [Install]
-   WantedBy=multi-user.target
-   ```
-3. Ative e inicie:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable whatsapp-bot
-   sudo systemctl start whatsapp-bot
-   ```
+Você pode enviar comandos para o bot pelo próprio WhatsApp:
+- `!status` - Exibe os próximos horários exatos de `m.roll`, `m.rroll` e `m.checkin`, e o total já enviado.
+- `!roll` - Executa o ciclo de `m.roll` imediatamente.
+- `!rroll` - Executa o ciclo de `m.rroll` imediatamente.
+- `!checkin` - Executa o `m.checkin` imediatamente.
+- `!grupos` - Lista todos os seus grupos e seus respectivos IDs.
+- `!ajuda` - Exibe o menu de ajuda.
 
 ---
 
-## 🛡️ Segurança & Boas Práticas
+## ☁️ Deploy 24/7 na Nuvem (VPS Gratuita)
 
-- **Uso Pessoal:** Este bot foi desenhado para enviar mensagens para o **seu próprio número**. O envio de mensagens para terceiros em massa sem consentimento pode levar a restrições no WhatsApp.
-- **Sessão:** O arquivo `session.sqlite3` armazena as chaves de criptografia da sua sessão. Ele já está listado no `.gitignore` para nunca ser enviado ao GitHub.
+Como o bot consome apenas **~50MB de RAM**, ele roda perfeitamente em qualquer VPS gratuita, como **Oracle Cloud Always Free** ou servidores de baixo custo (Hetzner, Hostinger).
+
+Usando Docker:
+```bash
+docker compose up -d
+docker compose logs -f
+```
 
 ---
 
 ## 📄 Licença
-
-Distribuído sob a licença MIT. Veja `LICENSE` para mais detalhes.
+Distribuído sob a licença MIT.
