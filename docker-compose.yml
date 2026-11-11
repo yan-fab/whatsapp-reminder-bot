@@ -5,6 +5,8 @@ services:
     build: .
     container_name: whatsapp-reminder-bot
     restart: unless-stopped
+    stdin_open: true
+    tty: true
     env_file:
       - .env
     environment:

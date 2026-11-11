@@ -58,6 +58,11 @@ RUN_IMMEDIATELY = os.getenv("RUN_IMMEDIATELY", "true").strip().lower() in ("true
 # Caminho do banco SQLite de sessão do WhatsApp
 DATABASE_PATH = os.getenv("DATABASE_PATH", "session.sqlite3")
 
+# Garante que o diretório do banco de dados exista (especialmente no Docker)
+db_dir = os.path.dirname(DATABASE_PATH)
+if db_dir:
+    os.makedirs(db_dir, exist_ok=True)
+
 def validate_config() -> bool:
     if not TARGET_CHAT:
         print("\n⚠️  [ATENÇÃO] A variável TARGET_CHAT não está configurada no .env!")
