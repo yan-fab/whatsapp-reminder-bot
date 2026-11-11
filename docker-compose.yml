@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  whatsapp-reminder-bot:
+    build: .
+    container_name: whatsapp-reminder-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/app/data/session.sqlite3
+    volumes:
+      - ./data:/app/data
